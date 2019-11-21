@@ -7,6 +7,8 @@ import RPi.GPIO as GPIO
 import time
 from threading import Thread
 import threading
+import multiprocessing
+
 
 GPIO.setmode(GPIO.BCM)
 
@@ -16,7 +18,6 @@ GPIO_ECHO = 24
 GPIO.setup(GPIO_TRIGGER, GPIO.OUT)
 GPIO.setup(GPIO_ECHO, GPIO.IN)
 
-sem = threading.Semaphore()
 
 # Define a function which adds a summary attribute (this isn't necessary but was handy for my purposes)
 def scanForCells():
@@ -54,46 +55,44 @@ def distance():
     return distance
 
 def wifi_func():
-#    while True:
-#        cells = scanForCells()
-#    
-#        sem.acquire()
-#        for cell in cells:
-#            print(cell.summary)
-#            speak(cell.summary)
-#            sem.release()
-    print("Hello world") 
-
+    t = threading.currentThread()
+    while getattr(t, "do_run", True):    
+        cells = scanForCells()
+        threadLock.acquire()
+        for cell in cells:
+            print(cell.summary)
+            speak(cell.summary)
+        threadLock.release()
+    
+        time.sleep(30)
+    print("stopping wifi") 
+    
 def dist_func():
-#    while True:
-#        dist = distance()
-#        if dist < 5:
-#            sem.acquire()
-#            print("dist:", dist)
-#            time.sleep(1)
-#            sem.release()
-
-    t1 = threading.Timer(2.0, dist_func)
-    t1.start()
-    print("T2") 
-
-def print_it():
-    t2 = threading.Timer(5.0, print_it)
-    t2.start()
-    print("Hello, World!")
+    t2 = threading.currentThread()
+    while getattr(t2, "do_run", True):    
+        dist = distance()
+        if dist < 5:
+            threadLock.acquire()
+            print("dist:", dist)
+            time.sleep(1)
+            threadLock.release()
+    print("stopping distance sensor")
 
 if __name__ == '__main__':
+    threadLock = threading.Lock()
     try:
-#        t = threading.Thread(target = dist_func)
-#        t.start()
-        dist_func()
-        print_it()
-        #t2.start()
+        t = threading.Thread(target = dist_func)
+        t.start()
+        t2 = threading.Thread(target = wifi_func) 
+        t2.start()
           
     except KeyboardInterrupt:
-        print("stopped")
+        print("stopping")
+        t.do_run = False
+        t2.do_run = False
         t.join()
         t2.join()
+        
         print("All threads stopped") 
         GPIO.cleanup()
 

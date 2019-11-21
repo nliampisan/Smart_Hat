@@ -16,7 +16,7 @@ def scanForCells():
 
 def speak(txt):
     os.system("sudo espeak \""+txt+"\" --stdout |aplay")
-
+    
 
 while(True): 
     cells = scanForCells()
