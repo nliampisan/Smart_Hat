@@ -1,16 +1,16 @@
 
 import threading
-import queue
+import Queue
 import random
 import time
 
-def queuePrint(q):
+def queuePrint():
     t3 = threading.currentThread()
     while getattr(t3, "do_run", True):
         print(q.get())
 
 
-def wifi_func(q):
+def wifi_func():
     
     t = threading.currentThread()
     while getattr(t, "do_run", True):
@@ -19,7 +19,7 @@ def wifi_func(q):
     print("stopping wifi")
 
     
-def dist_func(q):
+def dist_func():
     t2 = threading.currentThread()
     while getattr(t2, "do_run", True):
         #print("dist") 
@@ -29,16 +29,16 @@ def dist_func(q):
 
 if __name__ == '__main__':
     threadLock = threading.Lock()
-    q = queue.PriorityQueue()
+    q = Queue.PriorityQueue()
 
     try:
         q.put(1)
         print(q.get())
-        t = threading.Thread(target = dist_func, args=(q,))
+        t = threading.Thread(target = dist_func)
         t.start()
-        t2 = threading.Thread(target = wifi_func,args=(q,)) 
+        t2 = threading.Thread(target = wifi_func) 
         t2.start()
-        t3 = threading.Thread(target = queuePrint, args=(q,))
+        t3 = threading.Thread(target = queuePrint)
         t3.start()
           
     except KeyboardInterrupt:
