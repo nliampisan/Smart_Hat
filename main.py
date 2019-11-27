@@ -56,60 +56,55 @@ def distance():
     
     return distance
 
-def wifi_func():
-    t = threading.currentThread()
-    while getattr(t, "do_run", True):    
+def wifi_func(event):
+    while not event.is_set():
         cells = scanForCells()
         for cell in cells:
-            threadLock.acquire()
             q.put((1, cell.summary))
-            threadLock.release()
     
         time.sleep(30)
     print("stopping wifi") 
     
-def dist_func():
-    t2 = threading.currentThread()
-    while getattr(t2, "do_run", True):    
+def dist_func(event):
+    while not event.is_set():
         dist = distance()
         if dist < 5:
-            threadLock.acquire()
             q.put((0,"danger"))
-            threadLock.release()
         time.sleep(1)
     print("stopping distance sensor")
     
-def speak_func():
-    t3 = threading.currentThread()
-    while getattr(t3, "do_run", True):
+def speak_func(event):
+    while not event.is_set():
         out = q.get()
         txt = out[1]
         speak(txt)
     
 
 if __name__ == '__main__':
+    #threadLock = threading.Lock()
+    #lock not needed due to the fact that
+    #put and get of queue has blocking behavior
     threadLock = threading.Lock()
     q = Queue.PriorityQueue()
     
+    
     try:
-        t = threading.Thread(target = dist_func)
+        event = threading.Event()
+        t = threading.Thread(target = dist_func, args=(event,))
         t.start()
-        t2 = threading.Thread(target = wifi_func) 
+        t2 = threading.Thread(target = wifi_func, args=(event,))
         t2.start()
-        t3 = threading.Thread(target = speak_func)
+        t3 = threading.Thread(target = speak_func, args=(event,))
         t3.start()
+        event.wait(1) #wait forever without blocking KeyboardInterrupt exceptions
           
     except KeyboardInterrupt:
         print("stopping")
-        t.do_run = False
-        t2.do_run = False
-        t3.do_run = False
-        t.join()
-        t2.join()
-        
+        event.set() #inform child thread that it should exit
         print("All threads stopped") 
         GPIO.cleanup()
-    
+        sys.exit(1)
+        
     
 
         
