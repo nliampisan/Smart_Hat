@@ -10,6 +10,9 @@ import threading
 import multiprocessing
 import Queue
 import random
+from evdev import InputDevice, categorize, ecodes
+gamepad = InputDevice('/dev/input/event4')
+
 
 GPIO.setmode(GPIO.BCM)
 
@@ -56,56 +59,69 @@ def distance():
     
     return distance
 
-def wifi_func(event):
-    while not event.is_set():
-        cells = scanForCells()
-        for cell in cells:
-            q.put((1, cell.summary))
-    
-        time.sleep(30)
-    print("stopping wifi") 
-    
-def dist_func(event):
-    while not event.is_set():
+def wifi_func():
+    print("wifi") 
+    cells = scanForCells()
+    for cell in cells:
+        q.put((1, cell.summary))
+        
+def dist_func():
+    while True:
         dist = distance()
         if dist < 5:
             q.put((0,"danger"))
         time.sleep(1)
     print("stopping distance sensor")
     
-def speak_func(event):
-    while not event.is_set():
+def speak_func():
+    while True:
         out = q.get()
         txt = out[1]
         speak(txt)
     
+def LED_blink():
+    os.system("sudo ./Lab6")
+
 
 if __name__ == '__main__':
     #threadLock = threading.Lock()
     #lock not needed due to the fact that
     #put and get of queue has blocking behavior
-    threadLock = threading.Lock()
     q = Queue.PriorityQueue()
     
+    t = threading.Thread(target = dist_func)
+    t.start()
     
-    try:
-        event = threading.Event()
-        t = threading.Thread(target = dist_func, args=(event,))
-        t.start()
-        t2 = threading.Thread(target = wifi_func, args=(event,))
-        t2.start()
-        t3 = threading.Thread(target = speak_func, args=(event,))
-        t3.start()
-        event.wait(1) #wait forever without blocking KeyboardInterrupt exceptions
-          
-    except KeyboardInterrupt:
-        print("stopping")
-        event.set() #inform child thread that it should exit
-        print("All threads stopped") 
-        GPIO.cleanup()
-        sys.exit(1)
-        
+    t3 = threading.Thread(target = speak_func)
+    t3.start()
     
+    
+    for event in gamepad.read_loop():
+        if event.type == ecodes.EV_KEY:
+            keyevent = categorize(event)
+            if keyevent.keystate == keyevent.key_down: 
+                if keyevent.keycode == 'BTN_THUMB':
+                    print("Green")
+                    t2 = threading.Thread(target = wifi_func)
+                    t2.start()
+                    t2.join()
+                elif keyevent.keycode == 'BTN_THUMB2':
+                    print("Red")
+                elif keyevent.keycode == 'BTN_TOP':
+                    print("Yellow")
+                    t4 = threading.Thread(target = LED_blink)
+                    t4.start()
+                    t4.join()
+    
+    
+    
+    print("Trying to Exit") 
+    t.join()
+    t2.join()
+    t3.join()
+    t4.join()
+    GPIO.cleanup()
+    exit(0) 
 
         
         
