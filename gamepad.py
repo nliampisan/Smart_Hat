@@ -6,8 +6,16 @@ for event in gamepad.read_loop():
         if keyevent.keystate == keyevent.key_down: 
             if keyevent.keycode == 'BTN_THUMB':
                 print("Green")
+                print(keyevent.keycode)
             elif keyevent.keycode == 'BTN_THUMB2':
                 print("Red")
+                print(keyevent.keycode)
             elif keyevent.keycode == 'BTN_TOP':
                 print("Yellow")
+                print(keyevent.keycode)
+            elif keyevent.keycode[0] == 'BTN_JOYSTICK':
+                print("Blue")
+                print(keyevent.keycode)
+            else:
+                print(keyevent.keycode)
         

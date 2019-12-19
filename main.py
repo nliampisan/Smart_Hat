@@ -22,6 +22,17 @@ GPIO_ECHO = 24
 GPIO.setup(GPIO_TRIGGER, GPIO.OUT)
 GPIO.setup(GPIO_ECHO, GPIO.IN)
 
+import smtplib
+
+def panic_button_func():
+    print("sending emergency alert") 
+    conn = smtplib.SMTP('imap.gmail.com',587)
+    conn.ehlo()
+    conn.starttls()
+    conn.login('studymonmon@gmail.com', 'mon@4325')
+    conn.sendmail('studymonmon@gmail.com','homecom1@gmail.com','Subject: Emergency Alert \n\n Reply Reply Reply')
+    conn.quit()
+
 
 # Define a function which adds a summary attribute (this isn't necessary but was handy for my purposes)
 def scanForCells():
@@ -71,13 +82,23 @@ def dist_func():
         if dist < 5:
             q.put((0,"danger"))
         time.sleep(1)
+        global stop_threads 
+        if stop_threads: 
+            break
     print("stopping distance sensor")
     
 def speak_func():
     while True:
-        out = q.get()
-        txt = out[1]
-        speak(txt)
+        try:
+            out = q.get_nowait()
+            txt = out[1]
+            speak(txt)
+        except: 
+            global stop_threads 
+            if stop_threads: 
+                break
+    print("stopping speak function")
+
     
 def LED_blink():
     os.system("sudo ./Lab6")
@@ -87,12 +108,16 @@ if __name__ == '__main__':
     #threadLock = threading.Lock()
     #lock not needed due to the fact that
     #put and get of queue has blocking behavior
+    stop_threads = False
     q = Queue.PriorityQueue()
     
     t = threading.Thread(target = dist_func)
-    t.start()
-    
+    t2 = threading.Thread(target = wifi_func)
     t3 = threading.Thread(target = speak_func)
+    t4 = threading.Thread(target = LED_blink)
+    t5 = threading.Thread(target = panic_button_func)
+
+    t.start()
     t3.start()
     
     
@@ -102,26 +127,40 @@ if __name__ == '__main__':
             if keyevent.keystate == keyevent.key_down: 
                 if keyevent.keycode == 'BTN_THUMB':
                     print("Green")
-                    t2 = threading.Thread(target = wifi_func)
+                    stop_threads = True
+                    print('threads killed')
+                    t.join()
+                    if t2.isAlive(): 
+                        t2.join()
+                    t3.join()
+                    if t4.isAlive(): 
+                        t4.join()
+                    if t5.isAlive():
+                        t5.join()
+                    GPIO.cleanup()
+                    exit(0) 
+                    
+                elif keyevent.keycode[0] == 'BTN_JOYSTICK':
+                    print("Blue")
                     t2.start()
                     t2.join()
+                    
+
                 elif keyevent.keycode == 'BTN_THUMB2':
                     print("Red")
+                    t5.start()
+                    t5.join()
+                    print("send complete") 
+                    
+                    
                 elif keyevent.keycode == 'BTN_TOP':
                     print("Yellow")
-                    t4 = threading.Thread(target = LED_blink)
                     t4.start()
                     t4.join()
     
     
     
-    print("Trying to Exit") 
-    t.join()
-    t2.join()
-    t3.join()
-    t4.join()
-    GPIO.cleanup()
-    exit(0) 
+    
 
         
         
